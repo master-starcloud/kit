@@ -159,12 +159,14 @@ func (c Client) Endpoint() endpoint.Endpoint {
 			}()
 		}
 
+		ctx = context.WithValue(ctx, ContextKeyRequestMethod, c.method)
+
 		var params json.RawMessage
 		if params, err = c.enc(ctx, request); err != nil {
 			return nil, err
 		}
 		rpcReq := clientRequest{
-			JSONRPC: "",
+			JSONRPC: Version,
 			Method:  c.method,
 			Params:  params,
 			ID:      c.requestID.Generate(),
@@ -196,6 +198,10 @@ func (c Client) Endpoint() endpoint.Endpoint {
 			defer resp.Body.Close()
 		}
 
+		for _, f := range c.after {
+			ctx = f(ctx, resp)
+		}
+
 		// Decode the body into an object
 		var rpcRes Response
 		err = json.NewDecoder(resp.Body).Decode(&rpcRes)
@@ -203,11 +209,12 @@ func (c Client) Endpoint() endpoint.Endpoint {
 			return nil, err
 		}
 
-		for _, f := range c.after {
-			ctx = f(ctx, resp)
+		response, err := c.dec(ctx, rpcRes)
+		if err != nil {
+			return nil, err
 		}
 
-		return c.dec(ctx, rpcRes)
+		return response, nil
 	}
 }
 

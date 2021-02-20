@@ -1,8 +1,11 @@
 package opencensus_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,14 +19,17 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	ockit "github.com/go-kit/kit/tracing/opencensus"
-	kithttp "github.com/go-kit/kit/transport/http"
+	jsonrpc "github.com/go-kit/kit/transport/http/jsonrpc"
 )
 
-func TestHTTPClientTrace(t *testing.T) {
+func TestJSONRPCClientTrace(t *testing.T) {
+	t.Skip("FLAKY")
+
 	var (
-		err     error
-		rec     = &recordingExporter{}
-		rURL, _ = url.Parse("https://httpbin.org/get")
+		err          error
+		rec          = &recordingExporter{}
+		rURL, _      = url.Parse("https://httpbin.org/anything")
+		endpointName = "DummyEndpoint"
 	)
 
 	trace.RegisterExporter(rec)
@@ -38,19 +44,19 @@ func TestHTTPClientTrace(t *testing.T) {
 	}
 
 	for _, tr := range traces {
-		clientTracer := ockit.HTTPClientTrace(
+		clientTracer := ockit.JSONRPCClientTrace(
 			ockit.WithName(tr.name),
 			ockit.WithSampler(trace.AlwaysSample()),
 		)
-		ep := kithttp.NewClient(
-			"GET",
+		ep := jsonrpc.NewClient(
 			rURL,
-			func(ctx context.Context, r *http.Request, i interface{}) error {
-				return nil
-			},
-			func(ctx context.Context, r *http.Response) (response interface{}, err error) {
+			endpointName,
+			jsonrpc.ClientRequestEncoder(func(ctx context.Context, i interface{}) (json.RawMessage, error) {
+				return json.RawMessage(`{}`), nil
+			}),
+			jsonrpc.ClientResponseDecoder(func(ctx context.Context, r jsonrpc.Response) (response interface{}, err error) {
 				return nil, tr.err
-			},
+			}),
 			clientTracer,
 		).Endpoint()
 
@@ -58,7 +64,7 @@ func TestHTTPClientTrace(t *testing.T) {
 
 		_, err = ep(ctx, nil)
 		if want, have := tr.err, err; want != have {
-			t.Fatalf("unexpected error, want %s, have %s", tr.err.Error(), err.Error())
+			t.Fatalf("unexpected error, want %v, have %v", tr.err, err)
 		}
 
 		spans := rec.Flush()
@@ -75,7 +81,7 @@ func TestHTTPClientTrace(t *testing.T) {
 			t.Errorf("incorrect span name, want %s, have %s", want, have)
 		}
 
-		if want, have := "GET /get", span.Name; want != have && tr.name == "" {
+		if want, have := endpointName, span.Name; want != have && tr.name == "" {
 			t.Errorf("incorrect span name, want %s, have %s", want, have)
 		}
 
@@ -94,8 +100,11 @@ func TestHTTPClientTrace(t *testing.T) {
 	}
 }
 
-func TestHTTPServerTrace(t *testing.T) {
-	rec := &recordingExporter{}
+func TestJSONRPCServerTrace(t *testing.T) {
+	var (
+		endpointName = "DummyEndpoint"
+		rec          = &recordingExporter{}
+	)
 
 	trace.RegisterExporter(rec)
 
@@ -114,11 +123,15 @@ func TestHTTPServerTrace(t *testing.T) {
 	for _, tr := range traces {
 		var client http.Client
 
-		handler := kithttp.NewServer(
-			endpoint.Nop,
-			func(context.Context, *http.Request) (interface{}, error) { return nil, nil },
-			func(context.Context, http.ResponseWriter, interface{}) error { return errors.New("dummy") },
-			ockit.HTTPServerTrace(
+		handler := jsonrpc.NewServer(
+			jsonrpc.EndpointCodecMap{
+				endpointName: jsonrpc.EndpointCodec{
+					Endpoint: endpoint.Nop,
+					Decode:   func(context.Context, json.RawMessage) (interface{}, error) { return nil, nil },
+					Encode:   func(context.Context, interface{}) (json.RawMessage, error) { return nil, tr.err },
+				},
+			},
+			ockit.JSONRPCServerTrace(
 				ockit.WithName(tr.name),
 				ockit.WithSampler(trace.AlwaysSample()),
 				ockit.WithHTTPPropagation(tr.propagation),
@@ -128,11 +141,10 @@ func TestHTTPServerTrace(t *testing.T) {
 		server := httptest.NewServer(handler)
 		defer server.Close()
 
-		const httpMethod = "GET"
-
-		req, err := http.NewRequest(httpMethod, server.URL, nil)
+		jsonStr := []byte(fmt.Sprintf(`{"method":"%s"}`, endpointName))
+		req, err := http.NewRequest("POST", server.URL, bytes.NewBuffer(jsonStr))
 		if err != nil {
-			t.Fatalf("unable to create HTTP request: %s", err.Error())
+			t.Fatalf("unable to create JSONRPC request: %v", err)
 		}
 
 		if tr.useParent {
@@ -148,7 +160,7 @@ func TestHTTPServerTrace(t *testing.T) {
 
 		resp, err := client.Do(req.WithContext(context.Background()))
 		if err != nil {
-			t.Fatalf("unable to send HTTP request: %s", err.Error())
+			t.Fatalf("unable to send JSONRPC request: %v", err)
 		}
 		resp.Body.Close()
 
@@ -177,7 +189,7 @@ func TestHTTPServerTrace(t *testing.T) {
 			t.Errorf("incorrect span name, want %s, have %s", want, have)
 		}
 
-		if want, have := "GET /", spans[0].Name; want != have && tr.name == "" {
+		if want, have := endpointName, spans[0].Name; want != have && tr.name == "" {
 			t.Errorf("incorrect span name, want %s, have %s", want, have)
 		}
 	}

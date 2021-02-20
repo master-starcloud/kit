@@ -1,4 +1,10 @@
-# Go kit<br/>[![Circle CI](https://circleci.com/gh/go-kit/kit.svg?style=shield)](https://circleci.com/gh/go-kit/kit) [![Travis CI](https://travis-ci.org/go-kit/kit.svg?branch=master)](https://travis-ci.org/go-kit/kit) [![builds.sr.ht status](https://builds.sr.ht/~peterbourgon/kit.svg)](https://builds.sr.ht/~peterbourgon/kit?) [![GoDoc](https://godoc.org/github.com/go-kit/kit?status.svg)](https://godoc.org/github.com/go-kit/kit) [![Coverage Status](https://coveralls.io/repos/go-kit/kit/badge.svg?branch=master&service=github)](https://coveralls.io/github/go-kit/kit?branch=master) [![Go Report Card](https://goreportcard.com/badge/go-kit/kit)](https://goreportcard.com/report/go-kit/kit) [![Sourcegraph](https://sourcegraph.com/github.com/go-kit/kit/-/badge.svg)](https://sourcegraph.com/github.com/go-kit/kit?badge)
+# Go kit
+
+![GitHub Workflow Status](https://github.com/go-kit/kit/workflows/CI/badge.svg)
+[![GoDev](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/go-kit/kit?tab=doc)
+[![codecov](https://codecov.io/gh/go-kit/kit/branch/master/graph/badge.svg)](https://codecov.io/gh/go-kit/kit)
+[![Go Report Card](https://goreportcard.com/badge/go-kit/kit)](https://goreportcard.com/report/go-kit/kit)
+[![Sourcegraph](https://sourcegraph.com/github.com/go-kit/kit/-/badge.svg)](https://sourcegraph.com/github.com/go-kit/kit?badge)
 
 **Go kit** is a **programming toolkit** for building microservices
 (or elegant monoliths) in Go. We solve common problems in distributed
@@ -8,6 +14,10 @@ business value.
 - Website: [gokit.io](https://gokit.io)
 - Mailing list: [go-kit](https://groups.google.com/forum/#!forum/go-kit)
 - Slack: [gophers.slack.com](https://gophers.slack.com) **#go-kit** ([invite](https://gophersinvite.herokuapp.com/))
+
+## Sponsors
+
+Click on Sponsor, above, for more information on sponsorship.
 
 ## Motivation
 
@@ -50,21 +60,22 @@ Thank you, [contributors](https://github.com/go-kit/kit/graphs/contributors)!
 
 ## Dependency management
 
-Go kit is a library, designed to be imported into a binary package. Vendoring
-is currently the best way for binary package authors to ensure reliable,
-reproducible builds. Therefore, we strongly recommend our users use vendoring
-for all of their dependencies, including Go kit. To avoid compatibility and
-availability issues, Go kit doesn't vendor its own dependencies, and
-doesn't recommend use of third-party import proxies.
+Go kit is [modules](https://github.com/golang/go/wiki/Modules) aware, and we
+encourage users to use the standard modules tooling. But Go kit is at major
+version 0, so it should be compatible with non-modules environments.
 
-There are several tools which make vendoring easier, including
- [dep](https://github.com/golang/dep),
- [gb](http://getgb.io),
- [glide](https://github.com/Masterminds/glide),
- [gvt](https://github.com/FiloSottile/gvt), and
- [govendor](https://github.com/kardianos/govendor).
-In addition, Go kit uses a variety of continuous integration providers
- to find and fix compatibility problems as soon as they occur.
+## Code generators
+
+There are several third-party tools that can generate Go kit code based on
+different starting assumptions.
+
+- [devimteam/microgen](https://github.com/devimteam/microgen)
+- [GrantZheng/kit](https://github.com/GrantZheng/kit)
+- [kujtimiihoxha/kit](https://github.com/kujtimiihoxha/kit) (unmaintained)
+- [nytimes/marvin](https://github.com/nytimes/marvin)
+- [sagikazarmark/mga](https://github.com/sagikazarmark/mga)
+- [sagikazarmark/protoc-gen-kit](https://github.com/sagikazarmark/protoc-gen-kit)
+- [tuneinc/truss](https://github.com/tuneinc/truss)
 
 ## Related projects
 
@@ -73,7 +84,7 @@ Projects with a ★ have had particular influence on Go kit's design (or vice-ve
 ### Service frameworks
 
 - [gizmo](https://github.com/nytimes/gizmo), a microservice toolkit from The New York Times ★
-- [go-micro](https://github.com/myodc/go-micro), a microservices client/server library ★
+- [go-micro](https://github.com/micro/go-micro), a distributed systems development framework ★
 - [gotalk](https://github.com/rsms/gotalk), async peer communication protocol &amp; library
 - [Kite](https://github.com/koding/kite), a micro-service framework
 - [gocircuit](https://github.com/gocircuit/circuit), dynamic cloud orchestration
@@ -114,7 +125,3 @@ Projects with a ★ have had particular influence on Go kit's design (or vice-ve
 - [Architecting for the Cloud](https://slideshare.net/stonse/architecting-for-the-cloud-using-netflixoss-codemash-workshop-29852233) — Netflix
 - [Dapper, a Large-Scale Distributed Systems Tracing Infrastructure](http://research.google.com/pubs/pub36356.html) — Google
 - [Your Server as a Function](http://monkey.org/~marius/funsrv.pdf) (PDF) — Twitter
-
----
-
-Development supported by [DigitalOcean](https://digitalocean.com).

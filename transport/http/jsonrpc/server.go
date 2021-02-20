@@ -11,10 +11,15 @@ import (
 	httptransport "github.com/go-kit/kit/transport/http"
 )
 
+type requestIDKeyType struct{}
+
+var requestIDKey requestIDKeyType
+
 // Server wraps an endpoint and implements http.Handler.
 type Server struct {
 	ecm          EndpointCodecMap
 	before       []httptransport.RequestFunc
+	beforeCodec  []RequestFunc
 	after        []httptransport.ServerResponseFunc
 	errorEncoder httptransport.ErrorEncoder
 	finalizer    httptransport.ServerFinalizerFunc
@@ -44,6 +49,14 @@ type ServerOption func(*Server)
 // request is decoded.
 func ServerBefore(before ...httptransport.RequestFunc) ServerOption {
 	return func(s *Server) { s.before = append(s.before, before...) }
+}
+
+// ServerBeforeCodec functions are executed after the JSON request body has been
+// decoded, but before the method's decoder is called. This provides an opportunity
+// for middleware to inspect the contents of the rpc request before being passed
+// to the codec.
+func ServerBeforeCodec(beforeCodec ...RequestFunc) ServerOption {
+	return func(s *Server) { s.beforeCodec = append(s.beforeCodec, beforeCodec...) }
 }
 
 // ServerAfter functions are executed on the HTTP response writer after the
@@ -105,6 +118,13 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx = context.WithValue(ctx, requestIDKey, req.ID)
+	ctx = context.WithValue(ctx, ContextKeyRequestMethod, req.Method)
+
+	for _, f := range s.beforeCodec {
+		ctx = f(ctx, r, req)
+	}
+
 	// Get the endpoint and codecs from the map using the method
 	// defined in the JSON  object
 	ecm, ok := s.ecm[req.Method]
@@ -160,7 +180,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // If the error implements ErrorCoder, the provided code will be set on the
 // response error.
 // If the error implements Headerer, the given headers will be set.
-func DefaultErrorEncoder(_ context.Context, err error, w http.ResponseWriter) {
+func DefaultErrorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", ContentType)
 	if headerer, ok := err.(httptransport.Headerer); ok {
 		for k := range headerer.Headers() {
@@ -177,7 +197,13 @@ func DefaultErrorEncoder(_ context.Context, err error, w http.ResponseWriter) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+
+	var requestID *RequestID
+	if v := ctx.Value(requestIDKey); v != nil {
+		requestID = v.(*RequestID)
+	}
 	_ = json.NewEncoder(w).Encode(Response{
+		ID:      requestID,
 		JSONRPC: Version,
 		Error:   &e,
 	})
